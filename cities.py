@@ -1,7 +1,9 @@
 __author__ = 'R'
 __project__ = 'Wifimap Downloader'
 
+from datetime import date
 import hashlib
+from importlib.resources import read_text
 import requests
 import time
 import random
@@ -16,11 +18,7 @@ user_agent = {
     'Accept': 'text/plain'
 }
 
-sign_in = {
-    "email": "",
-    "password": ""
-}
-
+current_date = date.today()
 
 def format_string(value):
     return "{{{}}}".format(','.join('"{}":"{}"'.format(key, val) for (key, val) in sorted(value.items())))
@@ -34,13 +32,25 @@ def key():
 def linuxTimestamp(string):
     salt = "MoKXE8Z84hkHOIXNWw6XIJli2Sl-pqE-rryygRBj"
     sha = hashlib.sha1()
-    sha.update("{}".format(string + salt))
+    sha.update(("{}".format(string + salt)).encode(encoding = 'UTF-8', errors = 'strict'))
     return sha.hexdigest().lower()[2:25]
 
+def sign_in():
+    if not path.exists('sign_in.txt'):
+        sign_in = json.dumps({
+            "email": str(input("Email: ")),
+            "password": str(input("Password: "))
+        })
+        with open("sign_in.txt", "w") as line:
+            line.write(sign_in)
+        return json.loads(sign_in)
+    else:
+        with open("sign_in.txt", "r") as line:
+            return json.loads(line.read())
 
 def load_token():
     if not path.exists('session.txt'):
-        data = '{}'.format(format_string(sign_in))
+        data = '{}'.format(format_string(sign_in()))
         token = requests.post("http://wifimap.io/users/sign_in?timestamp={}".format(linuxTimestamp(data)),
                               data=data, headers=user_agent)
         with open("session.txt", "w") as line:
@@ -57,13 +67,24 @@ if __name__ == "__main__":
 
     with open("city.csv", "r") as f:
         for i in f:
+            i = i.replace("\n", "")
             split = i.split(",")
-            print '{} - {}'.format(split[2].translate(None, '"\n\r'), split[1].translate(None, '"\n'))
+            print('{} - {}'.format(split[2].translate('"\n\r'), split[1].translate('"\n')))
 
-            x = requests.get("http://wifimap.io//user/purchased_cities/"
+            x = requests.get("http://wifimap.io/user/purchased_cities/"
                              "{}?srv_id={}&sub_srv_id={}&timestamp={}&session_token={}".format(
                 split[0], key(), key(), linuxTimestamp(str(split[0] + token)), token), headers=user_agent)
 
-            with open('data/{} - {}'.format(split[2].translate(None, '"\n\r'),
-                                            split[1].translate(None, '"\n')).strip(), 'w') as z:
-                z.write(x.text.encode('utf-8'))
+            if (x.status_code == 200):
+                with open('WIFIdata\\{}. {}-{}.json'.format(current_date, split[2].translate('"\n\r'),
+                                                split[1].translate('"\n')).strip(), 'w') as z:
+                    z.write(str(x.text.encode('utf-8')))
+            else:
+                print(x.status_code)
+                #data = json.dumps({
+                #    "order": {
+                #    "city_id": 9,
+                #    "platform": "android"
+                #    }
+                #})
+                #requests.post("http://wifimap.io/users/orders?timestamp={}&session_token={}".format(linuxTimestamp(data), token), data=data, headers=user_agent)
