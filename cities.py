@@ -4,7 +4,7 @@ __project__ = 'Wifimap Downloader'
 from datetime import date
 import hashlib
 from importlib.resources import read_text
-import requests
+import pip._vendor.requests
 import time
 import random
 import json
@@ -51,7 +51,7 @@ def sign_in():
 def load_token():
     if not path.exists('session.txt'):
         data = '{}'.format(format_string(sign_in()))
-        token = requests.post("http://wifimap.io/users/sign_in?timestamp={}".format(linuxTimestamp(data)),
+        token = pip._vendor.requests.post("http://wifimap.io/users/sign_in?timestamp={}".format(linuxTimestamp(data)),
                               data=data, headers=user_agent)
         with open("session.txt", "w") as line:
             line.write(token.text)
@@ -61,6 +61,13 @@ def load_token():
         with open("session.txt", "r") as line:
             return json.loads(line.read())
 
+def valid_name(oldName):
+    newName = ""
+    correctSymbols = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+    for symbol in oldName:
+        if symbol in correctSymbols:
+            newName = newName + symbol
+    return newName;
 
 if __name__ == "__main__":
     token = load_token()["session_token"]
@@ -71,14 +78,14 @@ if __name__ == "__main__":
             split = i.split(",")
             print('{} - {}'.format(split[2].translate('"\n\r'), split[1].translate('"\n')))
 
-            x = requests.get("http://wifimap.io/user/purchased_cities/"
+            x = pip._vendor.requests.get("http://wifimap.io/user/purchased_cities/"
                              "{}?srv_id={}&sub_srv_id={}&timestamp={}&session_token={}".format(
                 split[0], key(), key(), linuxTimestamp(str(split[0] + token)), token), headers=user_agent)
 
             if (x.status_code == 200):
-                with open('WIFIdata\\{}. {}-{}.json'.format(current_date, split[2].translate('"\n\r'),
-                                                split[1].translate('"\n')).strip(), 'w') as z:
-                    z.write(str(x.text.encode('utf-8')))
+                with open('WIFIdata\\{}. {}-{}.json'.format(current_date, valid_name(split[2].translate('"\n\r')),
+                                                valid_name(split[1].translate('"\n')).strip()), 'w', encoding='utf-8') as z:
+                    json.dump(str(x.text), z, ensure_ascii=False, indent=4)
             else:
                 print(x.status_code)
                 #data = json.dumps({
